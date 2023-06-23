@@ -19,14 +19,21 @@ from condorcmf.dbqueue.session import Session
 logging.basicConfig(level=logging.INFO)
 
 
+MYSQL_HOST = ""
+MYSQL_USER = ""
+MYSQL_PASSWORD = ""
+MYSQL_DATABASE = "condorcmf"
+MYSQL_POLL_DELAY = 10
+
+
 def main():
     # Create database connection
     db = DBQConnector(
-        definitions.MYSQL_HOST,
-        definitions.MYSQL_USER,
-        definitions.MYSQL_PASSWORD,
-        definitions.MYSQL_DATABASE,
-        definitions.MYSQL_POLL_DELAY,
+        MYSQL_HOST,
+        MYSQL_USER,
+        MYSQL_PASSWORD,
+        MYSQL_DATABASE,
+        MYSQL_POLL_DELAY,
     )
 
     # Instantiate session
@@ -78,6 +85,9 @@ def main():
         # Fetch latest job from queue
         follwer_job = follower_daemons[i].fetch_job()
 
+        # Fetch payload
+        follwer_job.get_payload()
+
         # Set job status to 1 (in progress)
         follwer_job.set_status(1)
 
@@ -107,13 +117,16 @@ def main():
         # Set job status to 1 (in progress)
         coordinator_job.set_status(1)
 
+        # Fetch payload
+        coordinator_job.get_payload()
+
         # Complete job
         coordinator_sum += coordinator_job.payload["data"]
 
         # Set job status to 2 (completed)
         coordinator_job.set_status(2)
 
-    print(f"Coordinator sum: {coordinator_sum}, Global sum: {global_sum}")
+    print(f"\n\nCoordinator sum: {coordinator_sum}, Global sum: {global_sum}\n\n")
 
     # Clean up
     session.clear_session()

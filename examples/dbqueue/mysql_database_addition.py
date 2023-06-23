@@ -14,14 +14,20 @@ except:
 
 logging.basicConfig(level=logging.INFO)
 
+MYSQL_HOST = ""
+MYSQL_USER = ""
+MYSQL_PASSWORD = ""
+MYSQL_DATABASE = "condorcmf"
+MYSQL_POLL_DELAY = 10
+
 
 def main():
     db = DBQConnector(
-        definitions.MYSQL_HOST,
-        definitions.MYSQL_USER,
-        definitions.MYSQL_PASSWORD,
-        definitions.MYSQL_DATABASE,
-        definitions.MYSQL_POLL_DELAY,
+        MYSQL_HOST,
+        MYSQL_USER,
+        MYSQL_PASSWORD,
+        MYSQL_DATABASE,
+        MYSQL_POLL_DELAY,
     )
 
     n_jobs = 100
