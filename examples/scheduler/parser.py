@@ -20,7 +20,7 @@ def main():
     log_dict = parser.parse_log_file(log)
     print(log_dict)
 
-    log_dict = parser.parse_log_file(Path("./utils_sleep/log/log.log"))
+    log_dict = parser.parse_log_file(Path("./condor_scheduler/log/log.log"))
     print(log_dict)
 
 
