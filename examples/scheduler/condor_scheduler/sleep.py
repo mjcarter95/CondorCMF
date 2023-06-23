@@ -28,6 +28,10 @@ def main():
     cluster_id = utils.condor_submit(job_file)
     print(f"Job submitted with ID {cluster_id}")
 
+    # Wait for log file to appear
+    while not log_file.exists():
+        sleep(1)
+
     # Wait for job to start then place on hold
     print("Waiting for job to start...")
     utils.wait_all_jobs_match_status([cluster_id], target_status=2, log_dirs=[log_file])
