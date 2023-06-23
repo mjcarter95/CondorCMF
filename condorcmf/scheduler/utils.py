@@ -221,7 +221,10 @@ def all_jobs_match_status(
     job_statuses=[],
     log_dirs=[],
 ):
+    if len(job_statuses) == 0 and len(log_dirs) == 0:
+        job_statuses = [get_job_status(cluster_id=cluster_id) for cluster_id in cluster_ids]
     if len(job_statuses) < len(log_dirs):
+        print(get_job_status(log_file=log_dirs[0]))
         job_statuses = [get_job_status(log_file=log_dir) for log_dir in log_dirs]
         if not all(len(job_status) > 0 for job_status in job_statuses):
             raise ValueError("Could not retrieve job statuses from all log files.")

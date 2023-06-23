@@ -9,7 +9,7 @@ def parse_log_file(log):
     event_code_pattern = (
         r"(\d{3})"  # Matches three-digit status code at the beginning of a line
     )
-    job_id_pattern = r"\((\d{4})\.(\d{3})\.\d{3}\)"  # Matches job ID and cluster ID in the format "(000.000.000)"
+    job_id_pattern = r"\((\d+)\.(\d+)\.\d+\)"  # Matches job ID and cluster ID in the format "(000.000.000)"
     datetime_pattern = r"(\d{2}/\d{2} \d{2}:\d{2}:\d{2})"  # Matches date and time in the format "MM/DD HH:MM:SS"
     status_pattern = r"(Job submitted|Job executing|Job was evicted|Job was held|Job was aborted|Job terminated)"  # Matches job status
 

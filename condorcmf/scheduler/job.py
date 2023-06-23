@@ -35,7 +35,7 @@ class Job:
         self.custom_args = custom_args
         self.n_jobs = n_jobs
         self.payload = payload
-        self.session_id = session_id
+        self.session_id = session_id if session_id else str(uuid.uuid4())
 
         self.job_id = job_id if job_id else str(uuid.uuid4())
 
