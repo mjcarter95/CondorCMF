@@ -1,7 +1,7 @@
 from pathlib import Path
 from time import sleep
 
-from condorsmcstan.scheduler.job import Job
+from condorcmf.scheduler.job import Job
 
 
 def main():
