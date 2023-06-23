@@ -3,7 +3,7 @@ import time
 
 import mysql.connector  # type: ignore
 
-from condorsmcstan import definitions
+from condorcmf import definitions
 
 """
 TO DO

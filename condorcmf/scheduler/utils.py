@@ -285,7 +285,7 @@ def rm_rf(path):
     shutil.rmtree(path, ignore_errors=True)
 
 
-def archive_condorsmcstan(path, archive_path):
+def archive_condorcmf(path, archive_path):
     """
     Archives a directory.
 

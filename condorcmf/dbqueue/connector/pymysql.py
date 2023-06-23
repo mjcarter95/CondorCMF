@@ -4,7 +4,7 @@ import time
 
 import pymysql
 
-from condorsmcstan import definitions
+from condorcmf import definitions
 
 """
 TO DO
