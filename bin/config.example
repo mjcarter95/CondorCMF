@@ -1,0 +1,6 @@
+[mysql]
+host=
+user=
+password=
+database=    
+poll_delay=5
