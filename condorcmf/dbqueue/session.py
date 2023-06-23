@@ -3,7 +3,6 @@ import logging
 import uuid
 from time import time
 
-from .. import definitions
 from .job import Job
 
 """
@@ -398,7 +397,7 @@ class Session:
         self.db.disconnect()
         logging.info(f"Cleaned complete jobs with session id: {self.session_id}")
 
-    def clean_stale_workers(self):
+    def clean_stale_workers(self, timeout=60):
         """
         Check for workers that have not checked in for longer than the specified timeout.
         """
@@ -407,7 +406,7 @@ class Session:
         result = self.db.select(
             "pool",
             "`id`, `session_id`, `node_id`, `status_code`, `last_seen`",
-            f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,1,3) AND `last_seen` < {time() - definitions.CONDORSMCSTAN_WORKER_TIMEOUT}",
+            f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,1,3) AND `last_seen` < {time() - timeout}",
         )
         self.db.disconnect()
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
