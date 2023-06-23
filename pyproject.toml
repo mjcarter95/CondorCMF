@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "condorcmf"
+version = "0.1.0"
+description = "A Python package for implementing coordinator-follower and coordinator-manager-follower architectures on HTCondor."
+authors = [
+    "Matthew Carter <m.j.carter2@liverpool.ac.uk>",
+    "Ian Smith <i.c.smith@liverpool.ac.uk>",
+    "Simon Maskell <s.maskell@liverpool.ac.uk>",
+    "Paul Spirakis <p.spirakis@liverpool.ac.uk>",
+    "Edward Pyzer-Knapp",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+appdirs = "^1.4"
+pymysql = "^1.0"
+pyyaml = "^6.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+max-line-length = 120
+
+[mypy]
+line_length = 120
