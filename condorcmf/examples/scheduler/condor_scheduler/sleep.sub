@@ -1,0 +1,10 @@
+universe = vanilla
+executable = sleep.bat
+request_cpus = 1
+requirements = (Arch=="X86_64") && (OpSys=="Windows") && (DA_CDT_HOST==TRUE)
+output = log/stdout.log
+error = log/stderr.log
+log = log/log.log
+notification = never
++DACDTJob = true
+queue 5
