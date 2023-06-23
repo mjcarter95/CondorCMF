@@ -10,9 +10,6 @@
 
 CondorCMF is a Python package that allows users to schedule tasks following a coordinator-follower and coordinator-manager-follower paradigm on HTCondor. CondorCMF utilises a database to allow daemons in the vanilla HTCondor universe to communicate with one another.
 
-## Motivation
-TO DO
-
 ## Installing CondorCMF
 To install CondorCMF, follow these steps:
 
@@ -63,6 +60,3 @@ Or use the following BibTeX entry:
   url = {https://github.com/mjcarter95/CondorCMF}
 }
 ```
-
-## License
-This project uses the following license: [<license_name>](<link>).
