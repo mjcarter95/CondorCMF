@@ -437,5 +437,6 @@ class Session:
         self.db.delete("job_queue", f"`session_id`='{self.session_id}'")
         self.db.delete("pool", f"`session_id`='{self.session_id}'")
         self.db.delete("session", f"`session_id`='{self.session_id}'")
+        self.db.delete("checkpoint", f"`session_id`='{self.session_id}'")
         self.db.disconnect()
         logging.info(f"Session cleared with session id: {self.session_id}")
