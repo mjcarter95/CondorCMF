@@ -23,6 +23,9 @@ class MySQLConnector:
         self.cursor = None
 
     def connect(self):
+        if self.connection is not None and self.connection.is_connected():
+            logging.warning("Already connected to MySQL database")
+            return
         try:
             self.connection = mysql.connector.connect(
                 host=self.host,
