@@ -306,7 +306,7 @@ class Session:
             ]
         return []
 
-    def clean_stale_jobs(self, job_type=None, from_id=None, check_deadline=True):
+    def clean_stale_jobs(self, job_type=None, from_id=None, deadline=None, check_deadline=True):
         """
         Pull all jobs from the job queue associated with `session_id` that are
         older than the associated `deadline` that do not have a status code of (1,2,3)
@@ -318,6 +318,8 @@ class Session:
         if job_type is None:
             if check_deadline:
                 qry = f"`session_id`='{self.session_id}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
+            elif deadline:
+                qry = f"`session_id`='{self.session_id}' AND `deadline` < {deadline} AND `status_code` NOT IN (1,2,3,4)"
             else:
                 qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
             if from_id:
