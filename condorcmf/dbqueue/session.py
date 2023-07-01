@@ -328,34 +328,66 @@ class Session:
         """
 
         logging.info(f"Tidying stale jobs with session id: {self.session_id}")
+
+        # Connect to the database
         self.db.connect()
-        if job_type is None:
-            if check_deadline:
-                qry = f"`session_id`='{self.session_id}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
-            elif deadline:
-                qry = f"`session_id`='{self.session_id}' AND `deadline` < {deadline} AND `status_code` NOT IN (1,2,3,4)"
+        conn = self.db.connection
+
+        try:
+            # Set isolation level to REPEATABLE READ
+            conn.autocommit(False)
+            conn.begin()
+
+            cursor = conn.cursor()
+
+            if job_type is None:
+                if check_deadline:
+                    qry = f"`session_id`='{self.session_id}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
+                elif deadline:
+                    qry = f"`session_id`='{self.session_id}' AND `deadline` < {deadline} AND `status_code` NOT IN (1,2,3,4)"
+                else:
+                    qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
+                if from_id:
+                    qry += f" AND `from_id`='{from_id}'"
+
+                # Acquire row-level locks using SELECT ... FOR UPDATE
+                select_query = f"SELECT * FROM job_queue WHERE {qry} FOR UPDATE"
+                cursor.execute(select_query)
+
+                # Update the rows
+                update_query = f"UPDATE job_queue SET `status_code`=3 WHERE {qry}"
+                cursor.execute(update_query)
+
             else:
-                qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
-            if from_id:
-                qry += f" AND `from_id`='{from_id}'"
-            self.db.update(
-                "job_queue",
-                "`status_code`=3",
-                qry,
-            )
-        else:
-            if check_deadline:
-                qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
-            else:
-                qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (1,2,3,4)"
-            if from_id:
-                qry += f" AND `from_id`='{from_id}'"
-            self.db.update(
-                "job_queue",
-                "`status_code`=3",
-                qry,
-            )
-        self.db.disconnect()
+                if check_deadline:
+                    qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
+                else:
+                    qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (1,2,3,4)"
+                if from_id:
+                    qry += f" AND `from_id`='{from_id}'"
+
+                # Acquire row-level locks using SELECT ... FOR UPDATE
+                select_query = f"SELECT * FROM job_queue WHERE {qry} FOR UPDATE"
+                cursor.execute(select_query)
+
+                # Update the rows
+                update_query = f"UPDATE job_queue SET `status_code`=3 WHERE {qry}"
+                cursor.execute(update_query)
+
+            # Commit the transaction
+            conn.commit()
+
+        except Exception as e:
+            # Rollback the transaction if an error occurs
+            conn.rollback()
+            raise e
+
+        finally:
+            # Restore autocommit and close the cursor and connection
+            conn.autocommit(True)
+            cursor.close()
+            conn.close()
+
         logging.info(f"Tidied stale jobs with session id: {self.session_id}")
 
     def count_stale_jobs(self, job_type=None, from_id=None):

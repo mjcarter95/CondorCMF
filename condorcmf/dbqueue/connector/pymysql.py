@@ -99,7 +99,7 @@ class PyMySQLConnector:
                 if limit > 1:
                     time.sleep(self.poll_delay)
                     self.select(table, columns, where_clause, orderby, limit - 1)
-            return False
+            return None
         return result
 
     def select_one(
