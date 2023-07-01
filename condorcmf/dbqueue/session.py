@@ -170,6 +170,20 @@ class Session:
 
             return len(result)
         
+        if role is None:
+            self.db.connect()
+            result = self.db.select(
+                "pool",
+                "`node_id`",
+                f"`session_id`='{self.session_id}' AND `status_code` NOT IN (2,3)",
+            )
+            self.db.disconnect()
+            logging.info(
+                f"Got number of active daemons with session id: {self.session_id}"
+            )
+
+            return len(result)
+
         self.db.connect()
         result = self.db.select(
             "pool",
