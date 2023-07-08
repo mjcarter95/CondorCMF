@@ -472,7 +472,7 @@ class Session:
         self.db.disconnect()
         logging.info(f"Cleaned complete jobs with session id: {self.session_id}")
 
-    def clean_stale_workers(self, timeout=60):
+    def clean_stale_daemons(self, timeout=60):
         """
         Check for workers that have not checked in for longer than the specified timeout.
         """
