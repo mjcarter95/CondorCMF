@@ -34,7 +34,6 @@ class Daemon:
     def join(self, payload=json.dumps({})):
         logging.info(f"{self.node_id} joining pool with session id: {self.session_id}")
         self.last_seen = time()
-        self.db.connect()
         self.db.insert(
             "pool",
             "(`session_id`, `node_id`, `role`, `created_at`, `last_seen`, `status_code`, `payload`)",
@@ -48,7 +47,6 @@ class Daemon:
                 payload,
             ),
         )
-        self.db.disconnect()
         logging.info(f"{self.node_id} joined pool with session id: {self.session_id}")
         self.status_code = 1
 
@@ -56,11 +54,9 @@ class Daemon:
         logging.info(
             f"getting status of {self.node_id} with session id: {self.session_id}"
         )
-        self.db.connect()
         status = self.db.select_one(
             "pool", "status_code", f"`session_id`='{self.session_id}'"
         )
-        self.db.disconnect()
         logging.info(f"got status of {self.node_id} with session id: {self.session_id}")
         self.status_code = status[0]
         return status[0]
@@ -68,13 +64,11 @@ class Daemon:
     def set_status(self, status=1):
         logging.info(f"{self.node_id} updating pool with session id: {self.session_id}")
         self.last_seen = time()
-        self.db.connect()
         self.db.update(
             table="pool",
             set_values=f"`status_code` = '{status}', `last_seen` = '{self.last_seen}'",
             where_clause=f"session_id = '{self.session_id}' AND `node_id` = '{self.node_id}'",
         )
-        self.db.disconnect()
         logging.info(f"{self.node_id} updated pool with session id: {self.session_id}")
         self.status_code = status
 
@@ -82,7 +76,6 @@ class Daemon:
         logging.info(
             f"{self.node_id} fetching latest job with session id: {self.session_id}"
         )
-        self.db.connect()
 
         if job_id is not None:
             where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0 AND `job_id`='{job_id}'"
@@ -98,7 +91,6 @@ class Daemon:
             orderby="created_at DESC",
         )
 
-        self.db.disconnect()
         logging.info(
             f"{self.node_id} fetched latest job with session id: {self.session_id}"
         )
@@ -121,7 +113,6 @@ class Daemon:
         logging.info(
             f"{self.node_id} fetching all jobs with session id: {self.session_id}"
         )
-        self.db.connect()
         if job_type is not None:
             where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0 AND `type`='{job_type}'"
         else:
@@ -132,7 +123,6 @@ class Daemon:
             where_clause,
             orderby="created_at DESC",
         )
-        self.db.disconnect()
         logging.info(
             f"{self.node_id} fetched all jobs with session id: {self.session_id}"
         )
@@ -162,11 +152,9 @@ class Daemon:
     def leave(self):
         logging.info(f"{self.node_id} leaving pool with session id: {self.session_id}")
         self.last_seen = time()
-        self.db.connect()
         self.db.update(
             table="pool",
             set_values=f"`status_code` = 0, `last_seen` = '{self.last_seen}'",
             where_clause=f"session_id = '{self.session_id}' AND `node_id` = '{self.node_id}'",
         )
-        self.db.disconnect()
         logging.info(f"{self.node_id} left pool with session id: {self.session_id}")

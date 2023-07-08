@@ -37,7 +37,7 @@ class PyMySQLConnector:
             error_code = error.args[0]
             if error_code == 1040:
                 print("too many connections")
-                sleep_time = random.randint(1, self.poll_delay)
+                sleep_time = random.random()
                 logging.error(
                     f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
                 )
@@ -53,16 +53,86 @@ class PyMySQLConnector:
             self.connection = None
             logging.info("Disconnected from MySQL database")
 
-    def insert(self, table, columns, values, limit=10):
+    def insert(self, table, columns, values):
+        query = f"INSERT INTO {table} {columns} VALUES {values}"
+        res = self._execute_query(query)
+        return res
+
+    def select(
+        self,
+        table,
+        columns,
+        where_clause,
+        orderby=None,
+    ):
+        query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
+        if orderby is not None:
+            query += f" ORDER BY {orderby}"
+        res = self._execute_query(query, select=True)
+        return res
+
+    def select_one(
+        self,
+        table,
+        columns,
+        where_clause,
+        orderby=None,
+    ):
+        query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
+        if orderby is not None:
+            query += f" ORDER BY {orderby}"
+        res = self._execute_query(query, select_one=True)
+        return res
+        
+
+    def update(
+        self, table, set_values, where_clause
+    ):
+        query = f"UPDATE {table} SET {set_values} WHERE {where_clause}"
+        res = self._execute_query(query)
+        return res
+
+    def delete(self, table, where_clause):
+        query = f"DELETE FROM {table} WHERE {where_clause}"
+        res = self._execute_query(query)
+        return res
+
+    def _execute_query(self, query, select=False, select_one=False, limit=10):
         try:
-            self.cursor.execute(
-                "INSERT INTO {} {} VALUES {}".format(table, columns, values)
-            )
-            self.connection.commit()
-            logging.info(f"Inserted row into {table} table {values}")
+            if select:
+                self.connect()
+                self.cursor.execute(query)
+                res = self.cursor.fetchall()
+                self.disconnect()
+                if not res:
+                    return None
+                return res
+            elif select_one:
+                self.connect()
+                self.cursor.execute(query)
+                res = self.cursor.fetchone()
+                self.disconnect()
+                if not res:
+                    return None
+                return res
+            else:
+                self.connect()
+                self.cursor.execute(query)
+                self.connection.commit()
+                self.disconnect()
+                return True
         except pymysql.Error as error:
-            print("!!!!! INSERT ERROR")
-            logging.error(f"Error inserting row into {table} table: {error}")
+            error_code = error.args[0]
+            if error_code == 1040:
+                print("too many connections")
+                sleep_time = random.random()
+                logging.error(
+                    f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
+                )
+                if limit > 1:
+                    self.connection = None
+                    time.sleep(sleep_time)
+                    self.connect(limit - 1)
             if "polling too quickly" in str(error):
                 logging.error(
                     f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
@@ -71,103 +141,3 @@ class PyMySQLConnector:
                     time.sleep(self.poll_delay)
                     self.insert(table, colums, values, limit - 1)
             return False
-        return True
-
-    def select(
-        self,
-        table,
-        columns,
-        where_clause,
-        orderby=None,
-        limit=10,
-    ):
-        try:
-            query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
-            if orderby is not None:
-                query += f" ORDER BY {orderby}"
-            self.cursor.execute(query)
-            result = self.cursor.fetchall()
-            logging.info(f"Selected row(s) from {table} table")
-        except pymysql.Error as error:
-            logging.error(f"Error selecting row(s) from {table} table: {error}")
-            print("!!!!! SELECT ERROR")
-            # Check for too many connections error
-            if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
-                if limit > 1:
-                    time.sleep(self.poll_delay)
-                    self.select(table, columns, where_clause, orderby, limit - 1)
-            return None
-        return result
-
-    def select_one(
-        self,
-        table,
-        columns,
-        where_clause,
-        orderby=None,
-        limit=10,
-    ):
-        try:
-            query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
-            if orderby is not None:
-                query += f" ORDER BY {orderby}"
-            self.cursor.execute(query)
-            result = self.cursor.fetchone()
-            logging.info(f"Selected row(s) from {table} table")
-        except pymysql.Error as error:
-            print("!!!!! SELECT ONE ERROR")
-            logging.error(f"Error selecting row(s) from {table} table: {error}")
-            if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
-                if limit > 1:
-                    time.sleep(self.poll_delay)
-                    self.select(table, columns, where_clause, orderby, limit - 1)
-            return False
-        return result
-
-    def update(
-        self, table, set_values, where_clause, limit=10
-    ):
-        try:
-            self.cursor.execute(
-                "UPDATE {} SET {} WHERE {}".format(table, set_values, where_clause)
-            )
-            self.connection.commit()
-            logging.info(f"Updated row(s) in {table} table {set_values}")
-        except pymysql.Error as error:
-            print("!!!!! UPDATE ERROR")
-            logging.error(f"Error updating row(s) in {table} table: {error}")
-            if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
-                if limit > 1:
-                    limit -= 1
-                    time.sleep(self.poll_delay)
-                    self.update(table, set_values, where_clause, limit)
-            return False
-        return True
-
-    def delete(self, table, where_clause, limit=10):
-        try:
-            self.cursor.execute("DELETE FROM {} WHERE {}".format(table, where_clause))
-            self.connection.commit()
-            logging.info(f"Deleted row(s) from {table} table")
-        except pymysql.Error as error:
-            logging.error(f"Error deleting row(s) from {table} table: {error}")
-            print("!!!!! DELETE ERROR")
-            if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
-                if limit > 1:
-                    limit -= 1
-                    time.sleep(self.poll_delay)
-                    self.delete(table, where_clause, limit)
-            return False
-        return True

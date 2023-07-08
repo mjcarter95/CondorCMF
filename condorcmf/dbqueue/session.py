@@ -36,53 +36,43 @@ class Session:
 
     def create(self, active=False):
         logging.info(f"Creating session with id: {self.session_id}")
-        self.db.connect()
         self.db.insert(
             "session",
             "(`session_id`, `created_at`, `active`, `deadline`, `payload`)",
             (self.session_id, self.created_at, active, self.deadline, self.payload),
         )
-        self.db.disconnect()
         logging.info(f"Session created with id {self.session_id}")
         self.active = active
 
     def status(self):
         logging.info(f"Getting status of session with id: {self.session_id}")
-        self.db.connect()
         status = self.db.select_one(
             "session", "active", f"`session_id`='{self.session_id}'"
         )
-        self.db.disconnect()
         logging.info(f"Got status of session with id: {self.session_id}")
         self.active = status[0]
         return status[0]
 
     def set_status(self, active=False):
         logging.info(f"Setting session status to: {active}")
-        self.db.connect()
         self.db.update(
             "session", f"`active`='{active}'", f"`session_id`='{self.session_id}'"
         )
-        self.db.disconnect()
         logging.info(f"Session status set to: {active}")
         self.active = active
 
     def set_payload(self, payload):
         logging.info(f"Updating session payload")
         payload = json.dumps(payload)
-        self.db.connect()
         self.db.update(
             "session", f"`payload`='{payload}'", f"`session_id`='{self.session_id}'"
         )
-        self.db.disconnect()
         self.payload = payload
         logging.info(f"Updated session payload")
 
     def delete(self):
         logging.info(f"Deleting session with id: {self.session_id}")
-        self.db.connect()
         self.db.delete("session", f"`session_id`='{self.session_id}'")
-        self.db.disconnect()
         logging.info(f"Session deleted with id: {self.session_id}")
 
     def pool_status(self, id: str = None):
@@ -108,13 +98,10 @@ class Session:
 
         logging.info(f"Getting pool status with session id: {self.session_id}")
         if id is None:
-            query = "SELECT `node_id`, `role`, `status_code`, `payload` FROM `pool` WHERE `session_id` = %s"
+            query = f"SELECT `node_id`, `role`, `status_code`, `payload` FROM `pool` WHERE `session_id` = '{self.session_id}'"
         else:
-            query = "SELECT `node_id`, `role`, `status_code` FROM `pool` WHERE `session_id` = %s"
-        self.db.connect()
-        self.db.cursor.execute(query, (self.session_id,))
-        result = self.db.cursor.fetchall()
-        self.db.disconnect()
+            query = f"SELECT `node_id`, `role`, `status_code` FROM `pool` WHERE `session_id` = '{self.session_id}'"
+        result = self.db._execute_query(query)
         logging.info(f"Pool status retrieved with session id: {self.session_id}")
 
         if id is None:
@@ -477,32 +464,26 @@ class Session:
         Check for workers that have not checked in for longer than the specified timeout.
         """
         logging.info(f"Checking for stale workers with session id: {self.session_id}")
-        self.db.connect()
         result = self.db.select(
             "pool",
             "`id`, `session_id`, `node_id`, `status_code`, `last_seen`",
             f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,1,3) AND `last_seen` < {time() - timeout}",
         )
-        self.db.disconnect()
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
 
         if result is not None:
             logging.info(f"Found stale workers with session id: {self.session_id}")
             for worker in result:
-                self.db.connect()
                 self.db.update(
                     "pool",
                     "`status_code`=2",
                     f"`id`='{worker[0]}'",
                 )
-                self.db.disconnect()
-                self.db.connect()
                 self.db.update(
                     "job_queue",
                     "`status_code`=3",
                     f"`session_id`='{self.session_id}' AND `to_id`='{worker[0]}' AND `status_code`=2",
                 )
-                self.db.disconnect()
 
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
 
