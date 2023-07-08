@@ -98,10 +98,17 @@ class Session:
 
         logging.info(f"Getting pool status with session id: {self.session_id}")
         if id is None:
-            query = f"SELECT `node_id`, `role`, `status_code`, `payload` FROM `pool` WHERE `session_id` = '{self.session_id}'"
+            result = self.db.select(
+                "pool",
+                "`node_id`, `role`, `status_code`, `payload`",
+                f"`session_id`='{self.session_id}'",
+            )
         else:
-            query = f"SELECT `node_id`, `role`, `status_code` FROM `pool` WHERE `session_id` = '{self.session_id}'"
-        result = self.db._execute_query(query)
+            result = self.db.select(
+                "pool",
+                "`node_id`, `role`, `status_code`, `payload`",
+                f"`session_id`='{self.session_id}' AND `node_id`='{id}'",
+            )
         logging.info(f"Pool status retrieved with session id: {self.session_id}")
 
         if id is None:
@@ -144,13 +151,11 @@ class Session:
         )
         if ids:
             ids = tuple(ids)
-            self.db.connect()
             result = self.db.select(
                 "pool",
                 "`node_id`",
                 f"`session_id`='{self.session_id}' AND `role`='{role}' AND `status_code` NOT IN (2,3) AND `node_id` IN {ids}",
             )
-            self.db.disconnect()
             logging.info(
                 f"Got number of active daemons with session id: {self.session_id}"
             )
@@ -158,26 +163,22 @@ class Session:
             return len(result)
         
         if role is None:
-            self.db.connect()
             result = self.db.select(
                 "pool",
                 "`node_id`",
                 f"`session_id`='{self.session_id}' AND `status_code` NOT IN (2,3)",
             )
-            self.db.disconnect()
             logging.info(
                 f"Got number of active daemons with session id: {self.session_id}"
             )
 
             return len(result)
 
-        self.db.connect()
         result = self.db.select(
             "pool",
             "`node_id`",
             f"`session_id`='{self.session_id}' AND `role`='{role}' AND `status_code` NOT IN (2,3)",
         )
-        self.db.disconnect()
         logging.info(f"Got number of active daemons with session id: {self.session_id}")
 
         return len(result)
@@ -189,16 +190,14 @@ class Session:
         """
         logging.info(f"Getting job queue with session id: {self.session_id}")
         if status_code is None:
-            query = "SELECT * FROM `job_queue` WHERE `session_id` = %s"
+            self.db.select("job_queue", "*", f"`session_id`='{self.session_id}'")
         else:
-            query = "SELECT * FROM `job_queue` WHERE `session_id` = %s AND `status_code` = %s"
-        self.db.connect()
-        if status_code is None:
-            self.db.cursor.execute(query, (self.session_id,))
-        else:
-            self.db.cursor.execute(query, (self.session_id, status_code))
-        result = self.db.cursor.fetchall()
-        self.db.disconnect()
+            self.db.select( 
+                "job_queue",
+                "*",
+                f"`session_id`='{self.session_id}' AND `status_code`='{status_code}'",
+            )
+
         logging.info(f"Got job queue with session id: {self.session_id}")
         return result
 
@@ -210,7 +209,6 @@ class Session:
         logging.info(
             f"Getting number of active jobs with session id: {self.session_id}"
         )
-        self.db.connect()
         if job_type is not None:
             qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (0,3,4)"
         else:
@@ -224,13 +222,13 @@ class Session:
             "`job_id`",
             qry
         )
-        self.db.disconnect()
         logging.info(f"Got number of active jobs with session id: {self.session_id}")
+        if result is None:
+            return 0
         return len(result)
 
     def fetch_latest_job(self, return_query=False):
         logging.info(f"Pulling the latest inactive job from the queue")
-        self.db.connect()
         job = self.db.select_one(
             "job_queue",
             "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`,  `created_at`, `deadline`",
@@ -238,7 +236,6 @@ class Session:
         )
         if job:
             self.db.update("jobs", "`active`=1", f"`job_id`='{job['job_id']}'")
-        self.db.disconnect()
         if job is not None:
             if return_query:
                 return jobs
@@ -260,7 +257,6 @@ class Session:
         If active is True, we pull all jobs that do not have a status of (0 or 3)
         """
         logging.info(f"Fetching jobs with session id: {self.session_id}")
-        self.db.connect()
         if job_type is not None:
             if active:
                 jobs = self.db.select(
@@ -287,7 +283,6 @@ class Session:
                     "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`,  `created_at`, `deadline`, `status_code`",
                     f"`session_id`='{self.session_id}'",
                 )
-        self.db.disconnect()
         logging.info(f"Fetched jobs with session id: {self.session_id}")
         if jobs is not None:
             if return_query:
@@ -382,7 +377,6 @@ class Session:
         Return the number of stale jobs associated with `session_id` that do not have a status code of (1,2,3).
         """
         logging.info(f"Counting stale jobs with session id: {self.session_id}")
-        self.db.connect()
         if job_type is None:
             where_clause = f"`session_id`='{self.session_id}' AND `deadline` < NOW() AND `status_code` NOT IN (1,2,3)"
         else:
@@ -394,7 +388,6 @@ class Session:
             "`job_id`",
             where_clause,
         )
-        self.db.disconnect()
         logging.info(f"Counted stale jobs with session id: {self.session_id}")
         return len(result)
 
@@ -404,7 +397,6 @@ class Session:
         Return a list of Job objects.
         """
         logging.info(f"Fetching stale jobs with session id: {self.session_id}")
-        self.db.connect()
         if job_type is None:
             where_clause = f"`session_id`='{self.session_id}' AND `status_code`=3"
         else:
@@ -419,7 +411,6 @@ class Session:
             where_clause,
         )
 
-        self.db.disconnect()
         logging.info(f"Fetched stale jobs with session id: {self.session_id}")
         if stale_jobs is not None:
             jobs = [
@@ -451,12 +442,12 @@ class Session:
             where_clause = f"`session_id`='{self.session_id}' AND `status_code`=4 AND `to_id`='{to_id}'"
         else:
             where_clause = f"`session_id`='{self.session_id}' AND `status_code`=4"
-        self.db.connect()
+
         self.db.delete(
             "job_queue",
             where_clause
         )
-        self.db.disconnect()
+
         logging.info(f"Cleaned complete jobs with session id: {self.session_id}")
 
     def clean_stale_daemons(self, timeout=60):
@@ -475,24 +466,21 @@ class Session:
             logging.info(f"Found stale workers with session id: {self.session_id}")
             for worker in result:
                 self.db.update(
-                    "pool",
-                    "`status_code`=2",
-                    f"`id`='{worker[0]}'",
-                )
-                self.db.update(
                     "job_queue",
                     "`status_code`=3",
                     f"`session_id`='{self.session_id}' AND `to_id`='{worker[0]}' AND `status_code`=2",
+                    queue_query=True,
                 )
+            self.db._execute_query_queue()
 
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
 
     def clear_session(self):
-        logging.info(f"Clearing session with session id: {self.session_id}")
-        self.db.connect()
-        self.db.delete("job_queue", f"`session_id`='{self.session_id}'")
-        self.db.delete("pool", f"`session_id`='{self.session_id}'")
-        self.db.delete("session", f"`session_id`='{self.session_id}'")
-        self.db.delete("checkpoint", f"`session_id`='{self.session_id}'")
-        self.db.disconnect()
+        logging.info(f"Clearing session with session id: {self.session_id}", queue_query=True)
+        self.db.delete("job_queue", f"`session_id`='{self.session_id}'", queue_query=True)
+        self.db.delete("pool", f"`session_id`='{self.session_id}'", queue_query=True)
+        self.db.delete("session", f"`session_id`='{self.session_id}'", queue_query=True)
+        self.db.delete("checkpoint", f"`session_id`='{self.session_id}'", queue_query=True)
+        self.db.delete("results", f"`session_id`='{self.session_id}'", queue_query=True)
+        self.db._execute_query_queue()
         logging.info(f"Session cleared with session id: {self.session_id}")
