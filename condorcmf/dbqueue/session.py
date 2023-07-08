@@ -160,6 +160,9 @@ class Session:
                 f"Got number of active daemons with session id: {self.session_id}"
             )
 
+            if result is None:
+                return 0
+
             return len(result)
         
         if role is None:
@@ -172,6 +175,9 @@ class Session:
                 f"Got number of active daemons with session id: {self.session_id}"
             )
 
+            if result is None:
+                return 0
+
             return len(result)
 
         result = self.db.select(
@@ -180,6 +186,9 @@ class Session:
             f"`session_id`='{self.session_id}' AND `role`='{role}' AND `status_code` NOT IN (2,3)",
         )
         logging.info(f"Got number of active daemons with session id: {self.session_id}")
+
+        if result is None:
+            return 0
 
         return len(result)
 

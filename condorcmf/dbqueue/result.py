@@ -3,6 +3,8 @@ import logging
 import uuid
 from time import time
 
+from . import utils
+
 
 class Result:
     def __init__(
@@ -10,6 +12,7 @@ class Result:
         db,
         session_id: str,
         node_id: str,
+        role: int,
         results_id: str = None,
         attributes=json.dumps({}),
         payload=json.dumps({}),
@@ -25,8 +28,8 @@ class Result:
     def insert(self):
         res = self.db.insert(
             "results",
-            "(`id`, `session_id`, `node_id`, `role`, `attributes`, `payload`, `created_at`)",
-            (self.session_id, self.node_id, self.role, self.attributes, self.payload, time()),
+            "(`session_id`, `node_id`, `role`, `job_id`, `attributes`, `payload`, `created_at`)",
+            (self.session_id, self.node_id, self.role, self.results_id, json.dumps(self.attributes, cls=utils.NpEncoder), json.dumps(self.payload, cls=utils.NpEncoder), time()),
         )
         return res
 

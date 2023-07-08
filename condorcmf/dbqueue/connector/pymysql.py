@@ -141,23 +141,25 @@ class PyMySQLConnector:
                 return True
         except pymysql.Error as error:
             error_code = error.args[0]
+            print(f"Error code: {error_code}")
+            print(f"Error: {error}")
+
             if error_code == 1040:
-                print("too many connections")
                 sleep_time = random.random()
                 logging.error(
                     f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
                 )
+
                 if limit > 1:
                     self.connection = None
                     time.sleep(sleep_time)
-                    self.connect(limit - 1)
+                    return self._execute_query(query_queue, select, select_one, limit - 1)
+
             if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
                 if limit > 1:
                     time.sleep(self.poll_delay)
-                    self.insert(table, colums, values, limit - 1)
+                    return self._execute_query(query_queue, select, select_one, limit - 1)
+
             return False
 
     def _execute_query_queue(self, limit=10):
@@ -190,21 +192,23 @@ class PyMySQLConnector:
             return results
         except pymysql.Error as error:
             error_code = error.args[0]
+            print(f"Error code: {error_code}")
+            print(f"Error: {error}")
+
             if error_code == 1040:
-                print("Too many connections")
                 sleep_time = random.random()
                 logging.error(
                     f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
                 )
+
                 if limit > 1:
                     self.connection = None
                     time.sleep(sleep_time)
                     return self._execute_query(query_queue, select, select_one, limit - 1)
+
             if "polling too quickly" in str(error):
-                logging.error(
-                    f"Waiting {self.poll_delay} seconds before retrying {limit} attempts left..."
-                )
                 if limit > 1:
                     time.sleep(self.poll_delay)
                     return self._execute_query(query_queue, select, select_one, limit - 1)
+
             return False
