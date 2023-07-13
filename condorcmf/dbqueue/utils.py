@@ -2,11 +2,6 @@ import json
 
 import numpy as np  # type: ignore
 
-"""
-TO DO
-    - Add docstrings
-"""
-
 
 class NpEncoder(json.JSONEncoder):
     """

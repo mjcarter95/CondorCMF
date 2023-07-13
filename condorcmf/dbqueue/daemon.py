@@ -5,12 +5,6 @@ from time import time
 
 from .job import Job
 
-"""
-TO DO
-    - Handle timeout exceptions and max tries
-    - Add docstrings
-"""
-
 
 class Daemon:
     def __init__(
@@ -34,19 +28,29 @@ class Daemon:
     def join(self, payload=json.dumps({})):
         logging.info(f"{self.node_id} joining pool with session id: {self.session_id}")
         self.last_seen = time()
-        self.db.insert(
-            "pool",
-            "(`session_id`, `node_id`, `role`, `created_at`, `last_seen`, `status_code`, `payload`)",
-            (
-                self.session_id,
-                self.node_id,
-                self.role,
-                self.created_at,
-                self.last_seen,
-                1,
-                payload,
-            ),
+        node = self.db.select_one(
+            "pool", "node_id", f"`session_id`='{self.session_id}' AND `node_id`='{self.node_id}'"
         )
+        if node is None:
+            self.db.insert(
+                "pool",
+                "(`session_id`, `node_id`, `role`, `created_at`, `last_seen`, `status_code`, `payload`)",
+                (
+                    self.session_id,
+                    self.node_id,
+                    self.role,
+                    self.created_at,
+                    self.last_seen,
+                    1,
+                    payload,
+                ),
+            )
+        else:
+            self.db.update(
+                table="pool",
+                set_values=f"`status_code` = 1, `last_seen` = '{self.last_seen}'",
+                where_clause=f"session_id = '{self.session_id}' AND `node_id` = '{self.node_id}'",
+            )
         logging.info(f"{self.node_id} joined pool with session id: {self.session_id}")
         self.status_code = 1
 

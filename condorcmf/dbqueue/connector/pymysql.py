@@ -33,19 +33,32 @@ class PyMySQLConnector:
             self.cursor = self.connection.cursor()
             logging.info("Connected to MySQL database")
         except pymysql.Error as error:
-            print("!!!!! CONNECT ERROR")
-            logging.error("Failed to connect to MySQL database: {}".format(error))
             error_code = error.args[0]
+            sleep_time = random.randint(5, max(15, self.poll_delay))
+
             if error_code == 1040:
-                print("too many connections")
-                sleep_time = random.random()
                 logging.error(
                     f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
                 )
+
                 if limit > 1:
                     self.connection = None
                     time.sleep(sleep_time)
-                    self.connect(limit - 1)
+                    return self.connect(limit - 1)
+
+            if "polling too quickly" in str(error):
+                if limit > 1:
+                    self.connection = None
+                    time.sleep(sleep_time)
+                    return self.connect(limit - 1)
+
+            raise RuntimeError(f"""
+                                    Exceeded maximum number of retries for query queue.
+                                    Error: {error}
+                                    Query Queue: {self.query_queue}
+                                """)
+
+            return False
 
     def disconnect(self):
         if self.connection is not None:
@@ -141,15 +154,9 @@ class PyMySQLConnector:
                 return True
         except pymysql.Error as error:
             error_code = error.args[0]
-            print(f"Error code: {error_code}")
-            print(f"Error: {error}")
+            sleep_time = random.randint(1, max(2, self.poll_delay))
 
             if error_code == 1040:
-                sleep_time = random.random()
-                logging.error(
-                    f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
-                )
-
                 if limit > 1:
                     self.connection = None
                     time.sleep(sleep_time)
@@ -157,8 +164,15 @@ class PyMySQLConnector:
 
             if "polling too quickly" in str(error):
                 if limit > 1:
-                    time.sleep(self.poll_delay)
+                    self.connection = None
+                    time.sleep(sleep_time)
                     return self._execute_query(query_queue, select, select_one, limit - 1)
+
+            raise RuntimeError(f"""
+                                    Exceeded maximum number of retries for query queue.
+                                    Error: {error}
+                                    Query Queue: {self.query_queue}
+                                """)
 
             return False
 
@@ -192,11 +206,9 @@ class PyMySQLConnector:
             return results
         except pymysql.Error as error:
             error_code = error.args[0]
-            print(f"Error code: {error_code}")
-            print(f"Error: {error}")
+            sleep_time = random.randint(1, max(2, self.poll_delay))
 
             if error_code == 1040:
-                sleep_time = random.random()
                 logging.error(
                     f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
                 )
@@ -208,7 +220,13 @@ class PyMySQLConnector:
 
             if "polling too quickly" in str(error):
                 if limit > 1:
-                    time.sleep(self.poll_delay)
+                    time.sleep(sleep_time)
                     return self._execute_query(query_queue, select, select_one, limit - 1)
+
+            raise RuntimeError(f"""
+                                    Exceeded maximum number of retries for query queue.
+                                    Error: {error}
+                                    Query Queue: {self.query_queue}
+                                """)
 
             return False

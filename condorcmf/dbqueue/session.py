@@ -5,12 +5,6 @@ from time import time
 
 from .job import Job
 
-"""
-TO DO
-    - Handle timeout exceptions and max tries
-    - Add docstrings
-"""
-
 
 class Session:
     def __init__(
@@ -28,7 +22,6 @@ class Session:
         self.session_id = str(uuid.uuid4()) if session_id is None else session_id
         self.created_at = time() if created_at is None else created_at
         if deadline is None:
-            # Pad by 7 minutes for worker initialisation
             self.deadline = self.created_at + runtime
         else:
             self.deadline = deadline
@@ -277,7 +270,7 @@ class Session:
                 jobs = self.db.select(
                     "job_queue",
                     "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`,  `created_at`, `deadline`, `status_code`",
-                    f"`session_id`='{self.session_id}' AND `type`='{job_type}'",
+                    f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (2)",
                 )
         else:
             if active:
@@ -290,7 +283,7 @@ class Session:
                 jobs = self.db.select(
                     "job_queue",
                     "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`,  `created_at`, `deadline`, `status_code`",
-                    f"`session_id`='{self.session_id}'",
+                    f"`session_id`='{self.session_id}' AND `status_code` NOT IN (2)",
                 )
         logging.info(f"Fetched jobs with session id: {self.session_id}")
         if jobs is not None:
@@ -459,37 +452,55 @@ class Session:
 
         logging.info(f"Cleaned complete jobs with session id: {self.session_id}")
 
-    def clean_stale_daemons(self, timeout=60):
+    def clean_stale_daemons(self, ids=None, role=None, timeout=60):
         """
         Check for workers that have not checked in for longer than the specified timeout.
         """
         logging.info(f"Checking for stale workers with session id: {self.session_id}")
+        where_query = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (2,3) AND `last_seen` < {time() - timeout}"
+        if role:
+            where_query += f" AND `role`='{role}'"
+        if ids:
+            ids_str = ", ".join([f"'{id}'" for id in ids])
+            where_query += f" AND `node_id` IN ({ids_str})"
         result = self.db.select(
             "pool",
             "`id`, `session_id`, `node_id`, `status_code`, `last_seen`",
-            f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,1,3) AND `last_seen` < {time() - timeout}",
+            # f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,1,3) AND `last_seen` < {time() - timeout}",
+            where_query,
         )
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
 
         if result is not None:
             logging.info(f"Found stale workers with session id: {self.session_id}")
             for worker in result:
+                # Set worker status to 2 (Held)
+                self.db.update(
+                    "pool",
+                    "`status_code`=2",
+                    f"`session_id`='{self.session_id}' AND `node_id`='{worker[2]}'",
+                    queue_query=True,
+                )
+
+                # Set any jobs allocated to them as stale
                 self.db.update(
                     "job_queue",
                     "`status_code`=3",
-                    f"`session_id`='{self.session_id}' AND `to_id`='{worker[0]}' AND `status_code`=2",
+                    f"`session_id`='{self.session_id}' AND `to_id`='{worker[2]}'",
                     queue_query=True,
                 )
             self.db._execute_query_queue()
 
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
 
-    def clear_session(self):
+    def clear_session(self, clear_results=False):
         logging.info(f"Clearing session with session id: {self.session_id}", queue_query=True)
         self.db.delete("job_queue", f"`session_id`='{self.session_id}'", queue_query=True)
         self.db.delete("pool", f"`session_id`='{self.session_id}'", queue_query=True)
         self.db.delete("session", f"`session_id`='{self.session_id}'", queue_query=True)
         self.db.delete("checkpoint", f"`session_id`='{self.session_id}'", queue_query=True)
-        self.db.delete("results", f"`session_id`='{self.session_id}'", queue_query=True)
+        if clear_results:
+            self.db.delete("results", f"`session_id`='{self.session_id}'", queue_query=True)
         self.db._execute_query_queue()
+
         logging.info(f"Session cleared with session id: {self.session_id}")
