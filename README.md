@@ -44,19 +44,19 @@ If you want to contact me you can reach me at <m (dot) j (dot) carter (at) liver
 ## Citation
 We appreciate citations as they let us discover what people have been doing with the software. 
 
-To cite CondorCMF in publications use:
+To cite CondorSMC in publications use:
 
-Carter, M., Smith, I., Maskell, S., Spirakis, P. & Pyzer-Knapp, K. (2023). CondorCMF (1.0.0). https://github.com/mjcarter95/CondorCMF
+Carter, M., Smith, I., Pyzer-Knapp, K., Spirakis, P. Maskell, S.,(2023). CondorSMC (1.0.0). https://github.com/mjcarter95/CondorSMC
 
 Or use the following BibTeX entry:
 
 ```
-@misc{condorcmf,
-  title = {CondorCMF (1.0.0)},
-  author = {Carter, Matthew and Smith, Ian and Maskell, Simon and Spirakis, Paul and Pyzer-Knapp, Edward},
+@misc{CondorSMC,
+  title = {CondorSMC (1.0.0)},
+  author = {Carter, Matthew and Smith, Ian and Pyzer-Knapp, Edward and Spirakis, Paul and Maskell, Simon},
   year = {2023},
   month = may,
   howpublished = {GitHub},
-  url = {https://github.com/mjcarter95/CondorCMF}
+  url = {https://github.com/mjcarter95/CondorSMC}
 }
 ```
