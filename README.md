@@ -36,7 +36,7 @@ Alternatively see the GitHub documentation on [creating a pull request](https://
 * Ian Smith
 * Edward Pyzer-Knapp
 * Paul Spirakis
-* Simon Maskell - [simonmaskeel.com](https://simonmaskell.com)
+* Simon Maskell - [simonmaskell.com](https://simonmaskell.com)
 
 ## Contact
 If you want to contact me you can reach me at <m (dot) j (dot) carter (at) liverpool (dot) ac (dot) uk>.
