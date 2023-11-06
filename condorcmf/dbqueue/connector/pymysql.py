@@ -22,7 +22,7 @@ class PyMySQLConnector:
         self.cursor = None
         self.query_queue = []
 
-    def connect(self, limit=10):
+    def connect(self, limit=20):
         try:
             self.connection = pymysql.connect(
                 host=self.host,
@@ -34,11 +34,11 @@ class PyMySQLConnector:
             logging.info("Connected to MySQL database")
         except pymysql.Error as error:
             error_code = error.args[0]
-            sleep_time = random.randint(5, max(15, self.poll_delay))
+            sleep_time = random.randint(5, max(20, self.poll_delay))
 
             if error_code == 1040:
                 logging.error(
-                    f"Waiting {sleep_time} seconds before retrying {limit} attempts left..."
+                    f"Waiting {sleep_time} seconds before retrying connect {limit} attempts left..."
                 )
 
                 if limit > 1:
@@ -67,12 +67,12 @@ class PyMySQLConnector:
             self.connection = None
             logging.info("Disconnected from MySQL database")
 
-    def insert(self, table, columns, values, queue_query=False):
+    def insert(self, table, columns, values, limit=10, queue_query=False):
         query = f"INSERT INTO {table} {columns} VALUES {values}"
         if queue_query:
             self.query_queue.append(("insert", query))
             return True
-        res = self._execute_query(query)
+        res = self._execute_query(query, limit=limit)
         return res
 
     def select(
@@ -81,6 +81,7 @@ class PyMySQLConnector:
         columns,
         where_clause,
         orderby=None,
+        limit=10,
         queue_query=False,
     ):
         query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
@@ -89,7 +90,7 @@ class PyMySQLConnector:
         if queue_query:
             self.query_queue.append(("select", query))
             return True
-        res = self._execute_query(query, select=True)
+        res = self._execute_query(query, limit=limit, select=True)
         return res
 
     def select_one(
@@ -98,6 +99,7 @@ class PyMySQLConnector:
         columns,
         where_clause,
         orderby=None,
+        limit=10,
         queue_query=False,
     ):
         query = f"SELECT {columns} FROM {table} WHERE {where_clause}"
@@ -106,26 +108,25 @@ class PyMySQLConnector:
         if queue_query:
             self.query_queue.append(("select_one", query))
             return True
-        res = self._execute_query(query, select_one=True)
+        res = self._execute_query(query, limit=limit, select_one=True)
         return res
-        
 
     def update(
-        self, table, set_values, where_clause, queue_query=False
+        self, table, set_values, where_clause, limit=10, queue_query=False
     ):
         query = f"UPDATE {table} SET {set_values} WHERE {where_clause}"
         if queue_query:
             self.query_queue.append(("update", query))
             return True
-        res = self._execute_query(query)
+        res = self._execute_query(query, limit=limit)
         return res
 
-    def delete(self, table, where_clause, queue_query=False):
+    def delete(self, table, where_clause, limit=10, queue_query=False):
         query = f"DELETE FROM {table} WHERE {where_clause}"
         if queue_query:
             self.query_queue.append(("delete", query))
             return True
-        res = self._execute_query(query)
+        res = self._execute_query(query, limit=limit)
         return res
 
     def _execute_query(self, query, select=False, select_one=False, limit=10):
@@ -177,8 +178,9 @@ class PyMySQLConnector:
             return False
 
     def _execute_query_queue(self, limit=10):
+        self.connect()
+
         try:
-            self.connect()
             results = []
 
             for query in self.query_queue:
