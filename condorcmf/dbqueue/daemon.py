@@ -76,21 +76,25 @@ class Daemon:
         logging.info(f"{self.node_id} updated pool with session id: {self.session_id}")
         self.status_code = status
 
-    def fetch_job(self, job_type=None, job_id=None):
+    def fetch_job(self, round_id=None, job_type=None, job_id=None):
         logging.info(
             f"{self.node_id} fetching latest job with session id: {self.session_id}"
         )
 
+        where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0"
+
+        if round_id is not None:
+            where_clause += f" AND `round_id`='{round_id}'"
+
         if job_id is not None:
-            where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0 AND `job_id`='{job_id}'"
-        elif job_type is not None:
-            where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0 AND `type`='{job_type}'"
-        else:
-            where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0"
+            where_clause += f" AND `job_id`='{job_id}'"
+
+        if job_type is not None:
+            where_clause += f" AND `type`='{job_type}'"
 
         job = self.db.select_one(
             "job_queue",
-            "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`",
+            "`id`, `session_id`, `job_id`, `round_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`",
             where_clause,
             orderby="created_at DESC",
         )
@@ -103,27 +107,32 @@ class Daemon:
             return Job(
                 db=self.db,
                 session_id=job[1],
-                to_id=job[3],
-                from_id=job[4],
-                type=job[5],
+                to_id=job[4],
+                from_id=job[5],
+                type=job[6],
                 job_id=job[2],
-                created_at=job[6],
-                deadline=job[7],
+                round_id=job[3],
+                created_at=job[7],
+                deadline=job[8],
             )
 
         return None
 
-    def fetch_all_jobs(self, job_type=None):
+    def fetch_all_jobs(self, round_id=None, job_type=None):
         logging.info(
             f"{self.node_id} fetching all jobs with session id: {self.session_id}"
         )
+        where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0"
+
+        if round_id is not None:
+            where_clause += f" AND `round_id`='{round_id}'"
+
         if job_type is not None:
-            where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0 AND `type`='{job_type}'"
-        else:
-            where_clause = f"`session_id`='{self.session_id}' AND `to_id`='{self.node_id}' AND `status_code`=0"
+            where_clause += f" AND `type`='{job_type}'"
+
         jobs = self.db.select(
             "job_queue",
-            "`id`, `session_id`, `job_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`",
+            "`id`, `session_id`, `job_id`, `round_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`",
             where_clause,
             orderby="created_at DESC",
         )
@@ -135,12 +144,13 @@ class Daemon:
                 Job(
                     db=self.db,
                     session_id=job[1],
-                    to_id=job[3],
-                    from_id=job[4],
-                    type=job[5],
+                    to_id=job[4],
+                    from_id=job[5],
+                    type=job[6],
                     job_id=job[2],
-                    created_at=job[6],
-                    deadline=job[7],
+                    round_id=job[3],
+                    created_at=job[7],
+                    deadline=job[8],
                 )
                 for job in jobs
             ]

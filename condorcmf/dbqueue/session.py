@@ -203,7 +203,7 @@ class Session:
         logging.info(f"Got job queue with session id: {self.session_id}")
         return result
 
-    def n_active_jobs(self, job_type=None, from_id=None, to_id=None):
+    def n_active_jobs(self, round_id=None, job_type=None, from_id=None, to_id=None):
         """
         Return the number of active jobs of type `type` associated with `session_id` where
         `status_code` is not 0 or 3.
@@ -215,6 +215,8 @@ class Session:
             qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (0,3,4)"
         else:
             qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (0,3,4)"
+        if round_id is not None:
+            qry += f" AND `round_id`='{round_id}'"
         if from_id is not None:
             qry += f" AND `from_id`='{from_id}'"
         if to_id is not None:
@@ -304,7 +306,7 @@ class Session:
             ]
         return []
 
-    def clean_stale_jobs(self, job_type=None, from_id=None, deadline=None, check_deadline=True):
+    def clean_stale_jobs(self, job_type=None, round_id=None, from_id=None, deadline=None, check_deadline=True):
         """
         Pull all jobs from the job queue associated with `session_id` that are
         older than the associated `deadline` that do not have a status code of (1,2,3)
@@ -325,14 +327,15 @@ class Session:
             cursor = conn.cursor()
 
             if job_type is None:
+                qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
                 if check_deadline:
-                    qry = f"`session_id`='{self.session_id}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
+                    qry += f"`deadline` < {int(time())}"
                 elif deadline:
-                    qry = f"`session_id`='{self.session_id}' AND `deadline` < {deadline} AND `status_code` NOT IN (1,2,3,4)"
-                else:
-                    qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
+                    qry += f"`deadline` < {deadline}"
                 if from_id:
                     qry += f" AND `from_id`='{from_id}'"
+                if round_id:
+                    qry += f" AND `round_id`='{round_id}'"
 
                 # Acquire row-level locks using SELECT ... FOR UPDATE
                 select_query = f"SELECT * FROM job_queue WHERE {qry} FOR UPDATE"
@@ -343,12 +346,15 @@ class Session:
                 cursor.execute(update_query)
 
             else:
+                qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (2,3,4)"
                 if check_deadline:
-                    qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `deadline` < {time()} AND `status_code` NOT IN (1,2,3,4)"
-                else:
-                    qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (1,2,3,4)"
+                    qry += f"`deadline` < {int(time())}"
+                elif deadline:
+                    qry += f"`deadline` < {deadline}"
                 if from_id:
                     qry += f" AND `from_id`='{from_id}'"
+                if round_id:
+                    qry += f" AND `round_id`='{round_id}'"
 
                 # Acquire row-level locks using SELECT ... FOR UPDATE
                 select_query = f"SELECT * FROM job_queue WHERE {qry} FOR UPDATE"
@@ -393,7 +399,7 @@ class Session:
         logging.info(f"Counted stale jobs with session id: {self.session_id}")
         return len(result)
 
-    def fetch_stale_jobs(self, job_type=None, from_id=None):
+    def fetch_stale_jobs(self, round_id=None, job_type=None, from_id=None):
         """
         Fetch stale jobs from the job queue. If job_type is specified, only fetch jobs of that type.
         Return a list of Job objects.
@@ -406,6 +412,9 @@ class Session:
 
         if from_id:
             where_clause += f" AND `from_id`='{from_id}'"
+        
+        if round_id:
+            where_clause += f" AND `round_id`='{round_id}'"
 
         stale_jobs = self.db.select(
             "job_queue",
@@ -492,6 +501,17 @@ class Session:
             self.db._execute_query_queue()
 
         logging.info(f"Checked for stale workers with session id: {self.session_id}")
+
+    def clean_jobs(self, round_id):
+        """
+        Remove all jobs from the job queue associated with `session_id` that have a round id of `round_id`.
+        """
+        logging.info(f"Cleaning jobs with session id: {self.session_id}")
+        self.db.delete(
+            "job_queue",
+            f"`session_id`='{self.session_id}' AND `round_id`='{round_id}'"
+        )
+        logging.info(f"Cleaned jobs with session id: {self.session_id}")
 
     def clear_session(self, clear_results=False):
         logging.info(f"Clearing session with session id: {self.session_id}", queue_query=True)
