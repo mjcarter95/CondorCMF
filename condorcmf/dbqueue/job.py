@@ -22,6 +22,7 @@ class Job:
         to_id: str,
         from_id: str,
         type: int,
+        round_id: str = None,
         job_id: str = None,
         created_at: float = None,
         deadline: float = None,
@@ -35,6 +36,7 @@ class Job:
         self.payload = payload
         self.status_code = 0
 
+        self.round_id = str(uuid.uuid4()) if round_id is None else round_id
         self.job_id = str(uuid.uuid4()) if job_id is None else job_id
         self.created_at = time() if created_at is None else created_at
         self.last_updated = time()
@@ -45,10 +47,11 @@ class Job:
         self.last_updated = time()
         _created = self.db.insert(
             "job_queue",
-            "(`session_id`, `job_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`, `last_updated`, `status_code`, `payload`)",
+            "(`session_id`, `job_id`, `round_id`, `to_id`, `from_id`, `type`, `created_at`, `deadline`, `last_updated`, `status_code`, `payload`)",
             (
                 self.session_id,
                 self.job_id,
+                self.round_id,
                 self.to_id,
                 self.from_id,
                 self.type,
@@ -115,10 +118,9 @@ class Job:
         Check if the results of the job are available
         """
         logging.info(f"Checking if results are available for job with id {self.job_id}")
+        where_clause = f"`session_id`='{self.session_id}' AND `job_id`='{self.job_id}' AND `round_id`='{self.round_id}' AND `to_id`='{self.from_id}' AND `from_id`='{self.to_id}'"
         if type:
-            where_clause = f"`session_id`='{self.session_id}' AND `job_id`='{self.job_id}' AND `to_id`='{self.from_id}' AND `from_id`='{self.to_id}' AND `type`='{type}'"
-        else:
-            f"`session_id`='{self.session_id}' AND `job_id`='{self.job_id}' AND `to_id`='{self.from_id}' AND `from_id`='{self.to_id}'"
+            where_clause += f" AND `type`='{type}'"
         results_available = self.db.select_one(
             "job_queue",
             "status_code",
