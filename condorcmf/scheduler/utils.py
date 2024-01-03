@@ -188,6 +188,11 @@ def condor_submit(submit_file):
         submit_output = subprocess.check_output(
             ["condor_submit", submit_file], universal_newlines=True
         )
+
+        if "ERROR" in submit_output:
+            print("Error submitting Condor job:", submit_output)
+            return None
+
         # Extract the job ID from the submit output
         job_id = submit_output.strip().split()[-1].strip(".")
         return job_id

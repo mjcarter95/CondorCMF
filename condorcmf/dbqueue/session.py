@@ -306,7 +306,7 @@ class Session:
             ]
         return []
 
-    def clean_stale_jobs(self, job_type=None, round_id=None, from_id=None, deadline=None, check_deadline=True):
+    def clean_stale_jobs(self, job_type=None, round_id=None, from_id=None, deadline=None, check_deadline=True, clear_running=False):
         """
         Pull all jobs from the job queue associated with `session_id` that are
         older than the associated `deadline` that do not have a status code of (1,2,3)
@@ -314,6 +314,11 @@ class Session:
         """
 
         logging.info(f"Tidying stale jobs with session id: {self.session_id}")
+
+        if clear_running:
+            check_statuses = "(2,3,4)"
+        else:
+            check_statuses = "(1,2,3,4)"
 
         # Connect to the database
         self.db.connect()
@@ -327,11 +332,11 @@ class Session:
             cursor = conn.cursor()
 
             if job_type is None:
-                qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN (1,2,3,4)"
+                qry = f"`session_id`='{self.session_id}' AND `status_code` NOT IN {check_statuses}"
                 if check_deadline:
-                    qry += f"`deadline` < {int(time())}"
+                    qry += f" AND `deadline` < {time()}"
                 elif deadline:
-                    qry += f"`deadline` < {deadline}"
+                    qry += f" AND `deadline` < {deadline}"
                 if from_id:
                     qry += f" AND `from_id`='{from_id}'"
                 if round_id:
@@ -346,11 +351,11 @@ class Session:
                 cursor.execute(update_query)
 
             else:
-                qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN (2,3,4)"
+                qry = f"`session_id`='{self.session_id}' AND `type`='{job_type}' AND `status_code` NOT IN {check_statuses}"
                 if check_deadline:
-                    qry += f"`deadline` < {int(time())}"
+                    qry += f" AND `deadline` < {time()}"
                 elif deadline:
-                    qry += f"`deadline` < {deadline}"
+                    qry += f" AND `deadline` < {deadline}"
                 if from_id:
                     qry += f" AND `from_id`='{from_id}'"
                 if round_id:
